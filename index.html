@@ -1,46 +1,95 @@
 <!DOCTYPE html>
 <html>
-  <head><title>Chat App</title></head>
-  <body>
-    <h2>Socket.IO Chat</h2>
-    <input id="username" placeholder="Enter username">
-    <input id="room" placeholder="Enter room name">
-    <button onclick="joinRoom()">Join</button>
-
+<head>
+  <title>Socket.IO Chat</title>
+  <style>
+    body { font-family: Arial; display: flex; }
+    #users { width: 150px; border-right: 1px solid #ccc; padding: 10px; }
+    #messages { list-style: none; padding: 10px; flex: 1; overflow-y: auto; height: 90vh; }
+    .server { color: gray; font-style: italic; }
+    .me { color: green; }
+    .private { color: purple; }
+    small { color: #888; font-size: 0.8em; margin-left: 5px; }
+  </style>
+</head>
+<body>
+  <div id="users">
+    <h4>Users</h4>
+    <ul id="userList"></ul>
+  </div>
+  <div>
     <ul id="messages"></ul>
-    <input id="messageInput" autocomplete="off" />
-    <button onclick="sendMessage()">Send</button>
+    <form id="form" action="">
+      <input id="input" autocomplete="off" /><button>Send</button>
+    </form>
+  </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-      const socket = io();
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const username = prompt("Enter your name:");
+    const room = prompt("Enter room name to join:");
 
-      function joinRoom() {
-        const username = document.getElementById("username").value;
-        const room = document.getElementById("room").value;
+    const socket = io();
+    socket.emit("join room", { username, room });
 
-        socket.emit("join room", { username, room });
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+    const messages = document.getElementById("messages");
+    const userList = document.getElementById("userList");
+
+    // Send public message
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit("chat message", { message: input.value });
+        input.value = "";
       }
+    });
 
-      socket.on("chat history", (messages) => {
-        messages.forEach(msg => addMessage(msg));
+    // Display message
+    function addMessage(user, message, time, type) {
+      const item = document.createElement("li");
+      if (type) item.classList.add(type);
+      item.innerHTML = `${user}: ${message} <small>${time}</small>`;
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Load chat history
+    socket.on("chat history", (history) => {
+      history.forEach((msg) => {
+        const type = msg.user === "Server" ? "server" : (msg.user === username ? "me" : "");
+        addMessage(msg.user, msg.message, msg.time, type);
       });
+    });
 
-      socket.on("chat message", (msg) => {
-        addMessage(msg);
-      });
+    // Public chat message
+    socket.on("chat message", (data) => {
+      const type = data.user === "Server" ? "server" : (data.user === username ? "me" : "");
+      addMessage(data.user, data.message, data.time, type);
+    });
 
-      function sendMessage() {
-        const msg = document.getElementById("messageInput").value;
-        socket.emit("chat message", { message: msg });
-        document.getElementById("messageInput").value = "";
-      }
-
-      function addMessage(msg) {
+    // Update user list
+    socket.on("user list", (users) => {
+      userList.innerHTML = "";
+      users.forEach((u) => {
         const li = document.createElement("li");
-        li.textContent = `[${msg.timestamp}] ${msg.user}: ${msg.message}`;
-        document.getElementById("messages").appendChild(li);
-      }
-    </script>
-  </body>
+        li.textContent = u.username;
+        li.style.cursor = "pointer";
+        li.onclick = () => {
+          const pm = prompt(`Private message to ${u.username}:`);
+          if (pm) {
+            socket.emit("private message", { toId: u.id, message: pm });
+          }
+        };
+        userList.appendChild(li);
+      });
+    });
+
+    // Receive private message
+    socket.on("private message", (data) => {
+      addMessage(`[PM from ${data.from}]`, data.message, data.time, "private");
+    });
+  </script>
+</body>
 </html>
