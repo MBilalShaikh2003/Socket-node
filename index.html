@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Chat App</title></head>
+  <body>
+    <h2>Socket.IO Chat</h2>
+    <input id="username" placeholder="Enter username">
+    <input id="room" placeholder="Enter room name">
+    <button onclick="joinRoom()">Join</button>
+
+    <ul id="messages"></ul>
+    <input id="messageInput" autocomplete="off" />
+    <button onclick="sendMessage()">Send</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+
+      function joinRoom() {
+        const username = document.getElementById("username").value;
+        const room = document.getElementById("room").value;
+
+        socket.emit("join room", { username, room });
+      }
+
+      socket.on("chat history", (messages) => {
+        messages.forEach(msg => addMessage(msg));
+      });
+
+      socket.on("chat message", (msg) => {
+        addMessage(msg);
+      });
+
+      function sendMessage() {
+        const msg = document.getElementById("messageInput").value;
+        socket.emit("chat message", { message: msg });
+        document.getElementById("messageInput").value = "";
+      }
+
+      function addMessage(msg) {
+        const li = document.createElement("li");
+        li.textContent = `[${msg.timestamp}] ${msg.user}: ${msg.message}`;
+        document.getElementById("messages").appendChild(li);
+      }
+    </script>
+  </body>
+</html>
