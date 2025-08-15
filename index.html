@@ -3,13 +3,103 @@
 <head>
   <title>Socket.IO Chat</title>
   <style>
-    body { font-family: Arial; display: flex; }
-    #users { width: 150px; border-right: 1px solid #ccc; padding: 10px; }
-    #messages { list-style: none; padding: 10px; flex: 1; overflow-y: auto; height: 90vh; }
-    .server { color: gray; font-style: italic; }
-    .me { color: green; }
-    .private { color: purple; }
-    small { color: #888; font-size: 0.8em; margin-left: 5px; }
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      margin: 0;
+      height: 100vh;
+      background-color: #e5ddd5;
+    }
+
+    #users {
+      width: 200px;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      background-color: #fff;
+    }
+
+    #messages {
+      list-style: none;
+      padding: 10px;
+      margin: 0;
+      flex: 1;
+      overflow-y: auto;
+      height: calc(100vh - 50px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #messages li {
+      max-width: 70%;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      position: relative;
+      clear: both;
+      word-wrap: break-word;
+    }
+
+    /* My messages */
+    #messages li.me {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+      border-bottom-right-radius: 0;
+    }
+
+    /* Other users' messages */
+    #messages li.other {
+      background-color: #fff;
+      align-self: flex-start;
+      border-bottom-left-radius: 0;
+    }
+
+    /* Server messages */
+    #messages li.server {
+      align-self: center;
+      background: none;
+      color: gray;
+      font-style: italic;
+    }
+
+    /* Private messages */
+    #messages li.private {
+      border: 2px solid purple;
+    }
+
+    small {
+      display: block;
+      font-size: 0.7em;
+      color: #888;
+      margin-top: 3px;
+    }
+
+    #form {
+      display: flex;
+      padding: 5px;
+      background-color: #f1f1f1;
+    }
+
+    #input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 20px;
+      outline: none;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      background: #4caf50;
+      color: white;
+      border-radius: 20px;
+      margin-left: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
   </style>
 </head>
 <body>
@@ -17,10 +107,11 @@
     <h4>Users</h4>
     <ul id="userList"></ul>
   </div>
-  <div>
+  <div style="flex: 1; display: flex; flex-direction: column;">
     <ul id="messages"></ul>
     <form id="form" action="">
-      <input id="input" autocomplete="off" /><button>Send</button>
+      <input id="input" autocomplete="off" placeholder="Type a message..." />
+      <button>Send</button>
     </form>
   </div>
 
@@ -37,39 +128,26 @@
     const messages = document.getElementById("messages");
     const userList = document.getElementById("userList");
 
-    // Send public message
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      if (input.value) {
-        socket.emit("chat message", { message: input.value });
-        input.value = "";
-      }
-    });
-
-    // Display message
     function addMessage(user, message, time, type) {
       const item = document.createElement("li");
-      if (type) item.classList.add(type);
-      item.innerHTML = `${user}: ${message} <small>${time}</small>`;
+      item.classList.add(type);
+      item.innerHTML = `<strong>${user}</strong><br>${message}<small>${time}</small>`;
       messages.appendChild(item);
       messages.scrollTop = messages.scrollHeight;
     }
 
-    // Load chat history
     socket.on("chat history", (history) => {
       history.forEach((msg) => {
-        const type = msg.user === "Server" ? "server" : (msg.user === username ? "me" : "");
+        const type = msg.user === "Server" ? "server" : (msg.user === username ? "me" : "other");
         addMessage(msg.user, msg.message, msg.time, type);
       });
     });
 
-    // Public chat message
     socket.on("chat message", (data) => {
-      const type = data.user === "Server" ? "server" : (data.user === username ? "me" : "");
+      const type = data.user === "Server" ? "server" : (data.user === username ? "me" : "other");
       addMessage(data.user, data.message, data.time, type);
     });
 
-    // Update user list
     socket.on("user list", (users) => {
       userList.innerHTML = "";
       users.forEach((u) => {
@@ -86,9 +164,16 @@
       });
     });
 
-    // Receive private message
     socket.on("private message", (data) => {
       addMessage(`[PM from ${data.from}]`, data.message, data.time, "private");
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit("chat message", { message: input.value });
+        input.value = "";
+      }
     });
   </script>
 </body>
